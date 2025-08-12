@@ -180,7 +180,8 @@ int Device::waitForAck(uint8_t expectedCls, uint8_t expectedId)
 
 int main() 
 {
-    Device dev(PORT);
+    const char* port = PORT;
+    Device dev(port);
     if (dev.openSerialPort() != 1) 
         return 1;
 
