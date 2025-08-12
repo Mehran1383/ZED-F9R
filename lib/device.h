@@ -31,13 +31,13 @@ private:
 
     void calculateChecksum(const std::vector<uint8_t>& payload, uint8_t& ckA, uint8_t& ckB); 
 public:
-    Device(const char* device);
+    Device(const char* port);
     ~Device(void);
 
     bool openSerialPort(void);
     void closeSerialPort(void); 
     bool sendUBXMessage(uint8_t cls, uint8_t id, const std::vector<uint8_t>& payload);
-    uint8_t* readUBXMessage(const size_t headerSize, const size_t maxPayload, 
+    bool readUBXMessage(const size_t headerSize, const size_t maxPayload, 
         uint8_t cls, uint8_t id, uint8_t* response);
     int waitForAck(uint8_t expectedCls, uint8_t expectedId);
 };

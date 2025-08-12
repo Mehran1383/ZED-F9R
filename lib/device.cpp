@@ -9,10 +9,10 @@
 const unsigned int maxWait = 1000000; // 1s 
 const unsigned int minWait = 100000; // 0.1s
 
-Device::Device(const char* device)
+Device::Device(const char* port)
 {
     this->fd = -1;
-    this->device = device;
+    this->port = port;
 }
 
 Device::~Device(void)
@@ -25,7 +25,7 @@ bool Device::openSerialPort(void)
     if (fd > 0)
         return 0;
 
-    fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY);
+    fd = open(port, O_RDWR | O_NOCTTY | O_NDELAY);
     if (fd == -1) 
         return 0;
     
@@ -91,7 +91,7 @@ bool Device::sendUBXMessage(uint8_t cls, uint8_t id, const std::vector<uint8_t>&
     return written == static_cast<ssize_t>(message.size());
 }
 
-uint8_t* Device::readUBXMessage(const size_t headerSize, const size_t maxPayload, 
+bool Device::readUBXMessage(const size_t headerSize, const size_t maxPayload, 
     uint8_t cls, uint8_t id, uint8_t* response) 
 {
     if (fd < 0)
@@ -130,7 +130,7 @@ uint8_t* Device::readUBXMessage(const size_t headerSize, const size_t maxPayload
 int Device::waitForAck(uint8_t expectedCls, uint8_t expectedId) 
 {
     if(fd < 0)
-        return ERROR_CLOSED
+        return ERROR_CLOSED;
 
     uint8_t buffer[10];
     int totalRead = 0;
