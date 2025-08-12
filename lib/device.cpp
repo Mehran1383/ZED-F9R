@@ -4,13 +4,27 @@
 #include <unistd.h>
 #include <cstring>
 
-#include "config.h"
+#include "device.h"
 
-const unsigned int maxWait = 5000000; // 5s 
-const unsigned int minWait = 1000000; // 1s
+const unsigned int maxWait = 1000000; // 1s 
+const unsigned int minWait = 100000; // 0.1s
 
-bool Config::openSerialPort(const char* device) 
+Device::Device(const char* device)
 {
+    this->fd = -1;
+    this->device = device;
+}
+
+Device::~Device(void)
+{
+    closeSerialPort();
+}
+
+bool Device::openSerialPort(void) 
+{
+    if (fd > 0)
+        return 0;
+
     fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY);
     if (fd == -1) 
         return 0;
@@ -34,7 +48,7 @@ bool Config::openSerialPort(const char* device)
     return 1;
 }
 
-void Config::closeSerialPort(void)
+void Device::closeSerialPort(void)
 {
     if (fd > 0) {
         close(fd);
@@ -42,7 +56,7 @@ void Config::closeSerialPort(void)
     }
 }
 
-void Config::calculateChecksum(const std::vector<uint8_t>& payload, uint8_t& ckA, uint8_t& ckB) 
+void Device::calculateChecksum(const std::vector<uint8_t>& payload, uint8_t& ckA, uint8_t& ckB) 
 {
     ckA = 0;
     ckB = 0;
@@ -52,8 +66,11 @@ void Config::calculateChecksum(const std::vector<uint8_t>& payload, uint8_t& ckA
     }
 }
 
-bool Config::sendUBXMessage(int fd, uint8_t cls, uint8_t id, const std::vector<uint8_t>& payload) 
+bool Device::sendUBXMessage(uint8_t cls, uint8_t id, const std::vector<uint8_t>& payload) 
 {
+    if (fd < 0)
+        return 0;
+
     uint16_t length = payload.size();
     std::vector<uint8_t> message;
 
@@ -74,8 +91,47 @@ bool Config::sendUBXMessage(int fd, uint8_t cls, uint8_t id, const std::vector<u
     return written == static_cast<ssize_t>(message.size());
 }
 
-int Config::waitForAck(int fd, uint8_t expectedCls, uint8_t expectedId) 
+uint8_t* Device::readUBXMessage(const size_t headerSize, const size_t maxPayload, 
+    uint8_t cls, uint8_t id, uint8_t* response) 
 {
+    if (fd < 0)
+        return 0;
+
+    uint8_t buffer[headerSize + maxPayload + 2]; // header + payload + checksum
+    int totalRead = 0;
+
+    // Wait and read the message
+    for (int attempts = 0; attempts < (maxWait / minWait); ++attempts) {
+        usleep(minWait);
+        int r = read(fd, buffer, 1);
+        if (r > 0) {
+            totalRead += r;
+
+            if (totalRead >= headerSize &&
+                buffer[0] == UBX_SYNC_CHAR1 &&
+                buffer[1] == UBX_SYNC_CHAR2 &&
+                buffer[2] == cls && buffer[3] == id) {
+                uint16_t len = buffer[4] | (buffer[5] << 8);
+
+                while (totalRead < headerSize + len + 2) {
+                    r = read(fd, buffer + totalRead, 1);
+                    if (r > 0) 
+                        totalRead += r;
+                }
+
+                response = buffer + 6;
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+int Device::waitForAck(uint8_t expectedCls, uint8_t expectedId) 
+{
+    if(fd < 0)
+        return ERROR_CLOSED
+
     uint8_t buffer[10];
     int totalRead = 0;
     int wait = 0;
@@ -124,8 +180,8 @@ int Config::waitForAck(int fd, uint8_t expectedCls, uint8_t expectedId)
 
 int main() 
 {
-    Config conf;
-    if (conf.openSerialPort(PORT) != 1) 
+    Device dev(PORT);
+    if (dev.openSerialPort() != 1) 
         return 1;
 
     // UBX-CFG-VALSET example payload (set CFG-RATE-MEAS = 100ms)
@@ -140,8 +196,8 @@ int main()
     };
 
     std::cout << "Sending UBX-CFG-VALSET..." << std::endl;
-    if (conf.sendUBXMessage(fd, 0x06, 0x8A, payload)) {
-        int result = conf.waitForAck(fd, 0x06, 0x8A);
+    if (dev.sendUBXMessage(0x06, 0x8A, payload)) {
+        int result = dev.waitForAck(0x06, 0x8A);
         switch (result)
         {
         case -2: 
@@ -155,11 +211,14 @@ int main()
             break;
         case 1:
             std::cout << "✔ ACK received!" << std::endl;
+            break;
+        default:
+            std::cout << "Open Serial port first!" << std::endl;
         }
     } else {
         std::cerr << "Failed to send UBX message." << std::endl;
     }
 
-    conf.closeSerialPort();
+    dev.closeSerialPort();
     return 0;
 }
