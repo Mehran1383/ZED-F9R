@@ -27,7 +27,7 @@
 class Device {
 private:
     int fd;
-    char port[256];
+    const char* port;
 
     void calculateChecksum(const std::vector<uint8_t>& payload, uint8_t& ckA, uint8_t& ckB); 
 public:
