@@ -6,13 +6,25 @@
 
 #include "device.h"
 
-const unsigned int maxWait = 1000000; // 1s 
-const unsigned int minWait = 100000; // 0.1s
+// UBX Sync Chars
+#define UBX_SYNC_CHAR1 0xB5
+#define UBX_SYNC_CHAR2 0x62
 
-Device::Device(const char* port)
+// UBX Class and ID for ACKs
+#define UBX_CLASS_ACK 0x05
+#define UBX_ID_ACK    0x01
+#define UBX_ID_NAK    0x00
+
+// Length constants 
+#define ACK_MAX_LEN 10
+#define HEADER_SIZE 6
+#define CHECKSUM_SIZE 2
+
+const unsigned int maxWait = 1000000; // 1s 
+const unsigned int minWait = 1000; // 1ms
+
+Device::Device(const char* portName) : fd(-1), port(portName)
 {
-    this->fd = -1;
-    this->port = port;
 }
 
 Device::~Device(void)
@@ -66,13 +78,13 @@ void Device::calculateChecksum(const std::vector<uint8_t>& payload, uint8_t& ckA
     }
 }
 
-bool Device::sendUBXMessage(uint8_t cls, uint8_t id, const std::vector<uint8_t>& payload) 
+ssize_t Device::sendUBXMessage(uint8_t cls, uint8_t id, const std::vector<uint8_t>& payload) 
 {
-    if (fd < 0)
-        return 0;
-
     uint16_t length = payload.size();
     std::vector<uint8_t> message;
+
+    if (fd < 0)
+        return 0;
 
     message.push_back(UBX_SYNC_CHAR1);
     message.push_back(UBX_SYNC_CHAR2);
@@ -91,55 +103,75 @@ bool Device::sendUBXMessage(uint8_t cls, uint8_t id, const std::vector<uint8_t>&
     return written == static_cast<ssize_t>(message.size());
 }
 
-bool Device::readUBXMessage(const size_t headerSize, const size_t maxPayload, 
-    uint8_t cls, uint8_t id, uint8_t* response) 
+bool Device::readUBXMessage(uint8_t cls, uint8_t id, uint8_t* response) 
 {
+    uint8_t buffer[HEADER_SIZE];
+    uint8_t ckA, ckB;
+    int totalRead = 0;
+    unsigned int wait = 0;
+    bool result;
+
     if (fd < 0)
         return 0;
 
-    uint8_t buffer[headerSize + maxPayload + 2]; // header + payload + checksum
-    int totalRead = 0;
-
-    // Wait and read the message
-    for (int attempts = 0; attempts < (maxWait / minWait); ++attempts) {
+    while(wait < maxWait) {
         usleep(minWait);
-        int r = read(fd, buffer, 1);
+        int r = read(fd, buffer + totalRead, 1);
         if (r > 0) {
             totalRead += r;
 
-            if (totalRead >= headerSize &&
+            if (totalRead == HEADER_SIZE &&
                 buffer[0] == UBX_SYNC_CHAR1 &&
                 buffer[1] == UBX_SYNC_CHAR2 &&
                 buffer[2] == cls && buffer[3] == id) {
-                uint16_t len = buffer[4] | (buffer[5] << 8);
 
-                while (totalRead < headerSize + len + 2) {
-                    r = read(fd, buffer + totalRead, 1);
-                    if (r > 0) 
+                uint16_t len = buffer[4] | (buffer[5] << 8);
+                uint8_t* payload = new uint8_t[len + CHECKSUM_SIZE];
+                totalRead = 0;
+
+                while (totalRead < len + CHECKSUM_SIZE) {
+                    r = read(fd, payload + totalRead, 1);
+                    if (r > 0) {
                         totalRead += r;
+                    } else if (r < 0) {
+                        delete [] payload;
+                        return 0;
+                    }    
                 }
 
-                response = buffer + 6;
-                return 1;
+                calculateChecksum(std::vector<uint8_t>(std::vector<uint8_t>(buffer + 2, buffer + HEADER_SIZE), 
+                                  std::vector<uint8_t>(payload, payload + len)), ckA, ckB);
+
+                if(cka == payload[len] && ckb == payload[len + 1])
+                    result = true;
+                else
+                    result = false;
+
+                delete [] payload;
+                return result;
             }
         }
+        wait += minWait;
     }
     return 0;
 }
 
 int Device::waitForAck(uint8_t expectedCls, uint8_t expectedId) 
 {
-    if(fd < 0)
-        return ERROR_CLOSED;
-
-    uint8_t buffer[10];
+    uint8_t buffer[ACK_MAX_LEN];
     int totalRead = 0;
-    int wait = 0;
-    uint8_t ckA = 0, ckB = 0;
+    unsigned int wait = 0;
+    uint8_t ckA, ckB;
+
+    if (fd < 0)
+        return SOCK_NOT_OPEN;
+
+    // A UBX-ACK-ACK is sent at least within one second
+    usleep(maxWait);
 
     while (wait < maxWait) {
         usleep(minWait);
-        int bytesRead = read(fd, &buffer[totalRead], 1);
+        int bytesRead = read(fd, buffer + totalRead, 1);
         if (bytesRead > 0) {
             totalRead += bytesRead;
 
@@ -149,22 +181,19 @@ int Device::waitForAck(uint8_t expectedCls, uint8_t expectedId)
                 totalRead--;
             }
 
-            // Look for sync
-            if (totalRead >= 10 &&
+            if (totalRead >= ACK_MAX_LEN &&
                 buffer[0] == UBX_SYNC_CHAR1 &&
                 buffer[1] == UBX_SYNC_CHAR2 &&
-                buffer[2] == UBX_CLASS_ACK) {
-                if (buffer[3] == UBX_ID_ACK &&
-                    buffer[6] == expectedCls &&
-                    buffer[7] == expectedId) {
+                buffer[2] == UBX_CLASS_ACK &&
+                buffer[6] == expectedCls &&
+                buffer[7] == expectedId) {
+
+                if (buffer[3] == UBX_ID_ACK) {
                     calculateChecksum(std::vector<uint8_t>(buffer + 2, buffer + 7), ckA, ckB);
                     if (ckA == buffer[8] && ckB == buffer[9])
                         return ACK;
                     return ERROR_CHECKSUM;
-                }
-                else if (buffer[3] == UBX_ID_NAK &&
-                         buffer[6] == expectedCls &&
-                         buffer[7] == expectedId) {
+                } else if (buffer[3] == UBX_ID_NAK) {
                     calculateChecksum(std::vector<uint8_t>(buffer + 2, buffer + 7), ckA, ckB);
                     if (ckA == buffer[8] && ckB == buffer[9])
                         return NAK;
@@ -180,7 +209,7 @@ int Device::waitForAck(uint8_t expectedCls, uint8_t expectedId)
 
 int main() 
 {
-    const char* port = PORT;
+    const char port[] = "/dev/ttyACM0";
     Device dev(port);
     if (dev.openSerialPort() != 1) 
         return 1;
@@ -197,20 +226,20 @@ int main()
     };
 
     std::cout << "Sending UBX-CFG-VALSET..." << std::endl;
-    if (dev.sendUBXMessage(0x06, 0x8A, payload)) {
+    if (dev.sendUBXMessage(0x06, 0x8A, payload) > 0) {
         int result = dev.waitForAck(0x06, 0x8A);
         switch (result)
         {
-        case -2: 
+        case ERROR_CHECKSUM: 
             std::cerr << "⚠ CheckSum Error!" << std::endl;
             break;
-        case -1:
+        case ERROR_TIMEOUT:
             std::cerr << "⚠ No ACK/NAK received (timeout)" << std::endl;
             break;
-        case 0:
+        case NAK:
             std::cerr << "✘ NAK received!" << std::endl;
             break;
-        case 1:
+        case ACK:
             std::cout << "✔ ACK received!" << std::endl;
             break;
         default:
