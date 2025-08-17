@@ -142,7 +142,7 @@ bool Device::readUBXMessage(uint8_t cls, uint8_t id, uint8_t* response)
                 calculateChecksum(std::vector<uint8_t>(std::vector<uint8_t>(buffer + 2, buffer + HEADER_SIZE), 
                                   std::vector<uint8_t>(payload, payload + len)), ckA, ckB);
 
-                if(cka == payload[len] && ckb == payload[len + 1])
+                if(ckA == payload[len] && ckB == payload[len + 1])
                     result = true;
                 else
                     result = false;
