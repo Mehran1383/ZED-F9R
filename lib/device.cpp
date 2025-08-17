@@ -109,7 +109,6 @@ bool Device::readUBXMessage(uint8_t cls, uint8_t id, uint8_t* response)
     uint8_t ckA, ckB;
     int totalRead = 0;
     unsigned int wait = 0;
-    bool result;
 
     if (fd < 0)
         return 0;
@@ -139,16 +138,19 @@ bool Device::readUBXMessage(uint8_t cls, uint8_t id, uint8_t* response)
                     }    
                 }
 
-                calculateChecksum(std::vector<uint8_t>(std::vector<uint8_t>(buffer + 2, buffer + HEADER_SIZE), 
-                                  std::vector<uint8_t>(payload, payload + len)), ckA, ckB);
+                std::vector<uint8_t> message;
+                for (int i = 2; i < HEADER_SIZE; i++)
+                    message.push_back(buffer[i]);
+                for (int i = 0; i < len + CHECKSUM_SIZE; i++)
+                    message.push_back(payload[i]);
+                delete [] payload;
+
+                calculateChecksum(message, ckA, ckB);
 
                 if(ckA == payload[len] && ckB == payload[len + 1])
-                    result = true;
+                    return 1;
                 else
-                    result = false;
-
-                delete [] payload;
-                return result;
+                    return 0;
             }
         }
         wait += minWait;
