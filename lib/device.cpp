@@ -23,7 +23,7 @@
 const unsigned int maxWait = 1000000; // 1s 
 const unsigned int minWait = 1000; // 1ms
 
-Device::Device(const char* portName) : fd(-1), port(portName)
+Device::Device(std::string portName) : fd(-1), port(portName)
 {
 }
 
@@ -37,7 +37,7 @@ bool Device::openSerialPort(void)
     if (fd > 0)
         return 0;
 
-    fd = open(port, O_RDWR | O_NOCTTY | O_NDELAY);
+    fd = open(port.c_str(), O_RDWR | O_NOCTTY | O_NDELAY);
     if (fd == -1) 
         return 0;
     
@@ -109,6 +109,7 @@ bool Device::readUBXMessage(uint8_t cls, uint8_t id, uint8_t* response)
     uint8_t ckA, ckB;
     int totalRead = 0;
     unsigned int wait = 0;
+    bool result;
 
     if (fd < 0)
         return 0;
@@ -119,7 +120,7 @@ bool Device::readUBXMessage(uint8_t cls, uint8_t id, uint8_t* response)
         if (r > 0) {
             totalRead += r;
 
-            if (totalRead == HEADER_SIZE &&
+            if (totalRead >= HEADER_SIZE &&
                 buffer[0] == UBX_SYNC_CHAR1 &&
                 buffer[1] == UBX_SYNC_CHAR2 &&
                 buffer[2] == cls && buffer[3] == id) {
@@ -143,14 +144,15 @@ bool Device::readUBXMessage(uint8_t cls, uint8_t id, uint8_t* response)
                     message.push_back(buffer[i]);
                 for (int i = 0; i < len + CHECKSUM_SIZE; i++)
                     message.push_back(payload[i]);
-                delete [] payload;
 
                 calculateChecksum(message, ckA, ckB);
-
-                if(ckA == payload[len] && ckB == payload[len + 1])
-                    return 1;
+                if (ckA == payload[len] && ckB == payload[len + 1])
+                    result = 1;
                 else
-                    return 0;
+                    result = 0;
+
+                delete [] payload;
+                return result;
             }
         }
         wait += minWait;
@@ -211,8 +213,7 @@ int Device::waitForAck(uint8_t expectedCls, uint8_t expectedId)
 
 int main() 
 {
-    const char port[] = "/dev/ttyACM0";
-    Device dev(port);
+    Device dev;
     if (dev.openSerialPort() != 1) 
         return 1;
 
@@ -245,10 +246,10 @@ int main()
             std::cout << "✔ ACK received!" << std::endl;
             break;
         default:
-            std::cout << "Open Serial port first!" << std::endl;
+            std::cout << "⚠ Open Serial port first!" << std::endl;
         }
     } else {
-        std::cerr << "Failed to send UBX message." << std::endl;
+        std::cerr << "⚠ Failed to send UBX message." << std::endl;
     }
 
     dev.closeSerialPort();
