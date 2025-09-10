@@ -18,14 +18,14 @@ private:
 
     void calculateChecksum(const std::vector<uint8_t>& payload, uint8_t& ckA, uint8_t& ckB); 
 public:
-    Device(std::string port = "/dev/ttyACM0");
+    Device(const std::string port = "/dev/ttyACM0");
     ~Device(void);
 
     bool openSerialPort(void);
     void closeSerialPort(void); 
-    ssize_t sendUBXMessage(uint8_t cls, uint8_t id, const std::vector<uint8_t>& payload);
-    bool readUBXMessage(uint8_t cls, uint8_t id, uint8_t* response);
-    int waitForAck(uint8_t expectedCls, uint8_t expectedId);
+    ssize_t sendUBXMessage(const uint8_t cls, const uint8_t id, const std::vector<uint8_t>& payload);
+    bool readUBXMessage(const uint8_t cls, const uint8_t id, std::vector<uint8_t>& response);
+    int waitForAck(const uint8_t expectedCls, const uint8_t expectedId);
 };
 
 #endif // DEVICE_H

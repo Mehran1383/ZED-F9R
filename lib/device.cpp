@@ -23,7 +23,7 @@
 const unsigned int maxWait = 1000000; // 1s 
 const unsigned int minWait = 1000; // 1ms
 
-Device::Device(std::string portName) : fd(-1), port(portName)
+Device::Device(const std::string portName) : fd(-1), port(portName)
 {
 }
 
@@ -78,7 +78,7 @@ void Device::calculateChecksum(const std::vector<uint8_t>& payload, uint8_t& ckA
     }
 }
 
-ssize_t Device::sendUBXMessage(uint8_t cls, uint8_t id, const std::vector<uint8_t>& payload) 
+ssize_t Device::sendUBXMessage(const uint8_t cls, const uint8_t id, const std::vector<uint8_t>& payload) 
 {
     uint16_t length = payload.size();
     std::vector<uint8_t> message;
@@ -103,7 +103,7 @@ ssize_t Device::sendUBXMessage(uint8_t cls, uint8_t id, const std::vector<uint8_
     return written == static_cast<ssize_t>(message.size());
 }
 
-bool Device::readUBXMessage(uint8_t cls, uint8_t id, uint8_t* response) 
+bool Device::readUBXMessage(const uint8_t cls, const uint8_t id, std::vector<uint8_t>& response) 
 {
     uint8_t buffer[HEADER_SIZE];
     uint8_t ckA, ckB;
@@ -151,6 +151,9 @@ bool Device::readUBXMessage(uint8_t cls, uint8_t id, uint8_t* response)
                 else
                     result = 0;
 
+                for (int i = 0; i < len; i++)
+                    message.push_back(payload[i]);
+
                 delete [] payload;
                 return result;
             }
@@ -160,7 +163,7 @@ bool Device::readUBXMessage(uint8_t cls, uint8_t id, uint8_t* response)
     return 0;
 }
 
-int Device::waitForAck(uint8_t expectedCls, uint8_t expectedId) 
+int Device::waitForAck(const uint8_t expectedCls, const uint8_t expectedId) 
 {
     uint8_t buffer[ACK_MAX_LEN];
     int totalRead = 0;
@@ -211,7 +214,7 @@ int Device::waitForAck(uint8_t expectedCls, uint8_t expectedId)
     return ERROR_TIMEOUT;
 }
 
-int main() 
+int main(void) 
 {
     Device dev;
     if (dev.openSerialPort() != 1) 
@@ -253,13 +256,14 @@ int main()
     // }
 
     std::cout << "📤 Sending UBX-MON-VER poll..." << std::endl;
-    if (!sendUBXMessage(fd, 0x0A, 0x04, {})) {
+    if (dev.sendUBXMessage(0x0A, 0x04, {}) <= 0) {
         std::cerr << "Failed to send UBX-MON-VER." << std::endl;
         return 1;
     }
 
+    std::vector<uint8_t> response;
     std::cout << "📥 Waiting for UBX-MON-VER response..." << std::endl;
-    readUBXMonVer(fd);
+    dev.readUBXMessage(0x0A, 0x04, response);
 
     dev.closeSerialPort();
     return 0;

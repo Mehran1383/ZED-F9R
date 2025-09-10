@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "format": "cpp",
+        "xstring": "cpp",
+        "xlocmes": "cpp",
+        "vector": "cpp"
+    }
+}
