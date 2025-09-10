@@ -217,40 +217,49 @@ int main()
     if (dev.openSerialPort() != 1) 
         return 1;
 
-    // UBX-CFG-VALSET example payload (set CFG-RATE-MEAS = 100ms)
-    std::vector<uint8_t> payload = {
-        0x00,                   // version
-        0x00,                   // layer (0: RAM only)
-        0x00, 0x00,             // reserved
+    // // UBX-CFG-VALSET example payload (set CFG-RATE-MEAS = 100ms)
+    // std::vector<uint8_t> payload = {
+    //     0x00,                   // version
+    //     0x00,                   // layer (0: RAM only)
+    //     0x00, 0x00,             // reserved
 
-        // KeyID = 0x30210001 (CFG-RATE-MEAS), Value = 100
-        0x01, 0x00, 0x21, 0x30, // Key ID (LE)
-        0x64, 0x00, 0x00, 0x00  // Value = 100 (LE)
-    };
+    //     // KeyID = 0x30210001 (CFG-RATE-MEAS), Value = 100
+    //     0x01, 0x00, 0x21, 0x30, // Key ID (LE)
+    //     0x64, 0x00, 0x00, 0x00  // Value = 100 (LE)
+    // };
 
-    std::cout << "Sending UBX-CFG-VALSET..." << std::endl;
-    if (dev.sendUBXMessage(0x06, 0x8A, payload) > 0) {
-        int result = dev.waitForAck(0x06, 0x8A);
-        switch (result)
-        {
-        case ERROR_CHECKSUM: 
-            std::cerr << "⚠ CheckSum Error!" << std::endl;
-            break;
-        case ERROR_TIMEOUT:
-            std::cerr << "⚠ No ACK/NAK received (timeout)" << std::endl;
-            break;
-        case NAK:
-            std::cerr << "✘ NAK received!" << std::endl;
-            break;
-        case ACK:
-            std::cout << "✔ ACK received!" << std::endl;
-            break;
-        default:
-            std::cout << "⚠ Open Serial port first!" << std::endl;
-        }
-    } else {
-        std::cerr << "⚠ Failed to send UBX message." << std::endl;
+    // std::cout << "Sending UBX-CFG-VALSET..." << std::endl;
+    // if (dev.sendUBXMessage(0x06, 0x8A, payload) > 0) {
+    //     int result = dev.waitForAck(0x06, 0x8A);
+    //     switch (result)
+    //     {
+    //     case ERROR_CHECKSUM: 
+    //         std::cerr << "⚠ CheckSum Error!" << std::endl;
+    //         break;
+    //     case ERROR_TIMEOUT:
+    //         std::cerr << "⚠ No ACK/NAK received (timeout)" << std::endl;
+    //         break;
+    //     case NAK:
+    //         std::cerr << "✘ NAK received!" << std::endl;
+    //         break;
+    //     case ACK:
+    //         std::cout << "✔ ACK received!" << std::endl;
+    //         break;
+    //     default:
+    //         std::cout << "⚠ Open Serial port first!" << std::endl;
+    //     }
+    // } else {
+    //     std::cerr << "⚠ Failed to send UBX message." << std::endl;
+    // }
+
+    std::cout << "📤 Sending UBX-MON-VER poll..." << std::endl;
+    if (!sendUBXMessage(fd, 0x0A, 0x04, {})) {
+        std::cerr << "Failed to send UBX-MON-VER." << std::endl;
+        return 1;
     }
+
+    std::cout << "📥 Waiting for UBX-MON-VER response..." << std::endl;
+    readUBXMonVer(fd);
 
     dev.closeSerialPort();
     return 0;
