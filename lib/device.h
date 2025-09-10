@@ -23,7 +23,7 @@ public:
 
     bool openSerialPort(void);
     void closeSerialPort(void); 
-    ssize_t sendUBXMessage(const uint8_t cls, const uint8_t id, const std::vector<uint8_t>& payload);
+    bool sendUBXMessage(const uint8_t cls, const uint8_t id, const std::vector<uint8_t>& payload);
     bool readUBXMessage(const uint8_t cls, const uint8_t id, std::vector<uint8_t>& response);
     int waitForAck(const uint8_t expectedCls, const uint8_t expectedId);
 };

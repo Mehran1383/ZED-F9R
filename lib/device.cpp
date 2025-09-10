@@ -78,7 +78,7 @@ void Device::calculateChecksum(const std::vector<uint8_t>& payload, uint8_t& ckA
     }
 }
 
-ssize_t Device::sendUBXMessage(const uint8_t cls, const uint8_t id, const std::vector<uint8_t>& payload) 
+bool Device::sendUBXMessage(const uint8_t cls, const uint8_t id, const std::vector<uint8_t>& payload) 
 {
     uint16_t length = payload.size();
     std::vector<uint8_t> message;
@@ -105,7 +105,7 @@ ssize_t Device::sendUBXMessage(const uint8_t cls, const uint8_t id, const std::v
 
 bool Device::readUBXMessage(const uint8_t cls, const uint8_t id, std::vector<uint8_t>& response) 
 {
-    uint8_t buffer[HEADER_SIZE];
+    std::vector<uint8_t> buffer;
     uint8_t ckA, ckB;
     int totalRead = 0;
     unsigned int wait = 0;
@@ -114,9 +114,11 @@ bool Device::readUBXMessage(const uint8_t cls, const uint8_t id, std::vector<uin
     if (fd < 0)
         return 0;
 
+    buffer.resize(HEADER_SIZE);
+
     while(wait < maxWait) {
         usleep(minWait);
-        int r = read(fd, buffer + totalRead, 1);
+        int r = read(fd, buffer.data() + totalRead, 1);
         if (r > 0) {
             totalRead += r;
 
@@ -126,35 +128,24 @@ bool Device::readUBXMessage(const uint8_t cls, const uint8_t id, std::vector<uin
                 buffer[2] == cls && buffer[3] == id) {
 
                 uint16_t len = buffer[4] | (buffer[5] << 8);
-                uint8_t* payload = new uint8_t[len + CHECKSUM_SIZE];
-                totalRead = 0;
+                uint16_t totalLen = HEADER_SIZE + len + CHECKSUM_SIZE;
+                buffer->resize(totalLen);
 
-                while (totalRead < len + CHECKSUM_SIZE) {
-                    r = read(fd, payload + totalRead, 1);
-                    if (r > 0) {
+                while (totalRead < totalLen) {
+                    r = read(fd, buffer.data() + totalRead, 1);
+                    if (r > 0)
                         totalRead += r;
-                    } else if (r < 0) {
-                        delete [] payload;
-                        return 0;
-                    }    
+                    else if (r < 0) 
+                        return 0;  
                 }
 
-                std::vector<uint8_t> message;
-                for (int i = 2; i < HEADER_SIZE; i++)
-                    message.push_back(buffer[i]);
-                for (int i = 0; i < len + CHECKSUM_SIZE; i++)
-                    message.push_back(payload[i]);
-
-                calculateChecksum(message, ckA, ckB);
-                if (ckA == payload[len] && ckB == payload[len + 1])
+                calculateChecksum(std::vector<uint8_t>(buffer.begin() + 2, buffer.end() - CHECKSUM_SIZE), ckA, ckB);
+                if (ckA == buffer[totalLen - 2] && ckB == buffer[totalLen - 1])
                     result = 1;
                 else
                     result = 0;
 
-                for (int i = 0; i < len; i++)
-                    message.push_back(payload[i]);
-
-                delete [] payload;
+                response = buffer;
                 return result;
             }
         }
@@ -232,7 +223,7 @@ int main(void)
     // };
 
     // std::cout << "Sending UBX-CFG-VALSET..." << std::endl;
-    // if (dev.sendUBXMessage(0x06, 0x8A, payload) > 0) {
+    // if (dev.sendUBXMessage(0x06, 0x8A, payload)) {
     //     int result = dev.waitForAck(0x06, 0x8A);
     //     switch (result)
     //     {
@@ -256,7 +247,7 @@ int main(void)
     // }
 
     std::cout << "📤 Sending UBX-MON-VER poll..." << std::endl;
-    if (dev.sendUBXMessage(0x0A, 0x04, {}) <= 0) {
+    if (!dev.sendUBXMessage(0x0A, 0x04, {})) {
         std::cerr << "Failed to send UBX-MON-VER." << std::endl;
         return 1;
     }
