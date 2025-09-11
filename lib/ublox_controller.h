@@ -48,7 +48,7 @@ public:
     bool sendUBXMessage(const uint8_t cls, const uint8_t id, const std::vector<uint8_t>& payload);
     bool readUBXMessage(const uint8_t cls, const uint8_t id, std::vector<uint8_t>& response);
     int waitForAck(const uint8_t expectedCls, const uint8_t expectedId);
-    std::string getPort() { retunr port; } 
+    std::string getPort() { return port; } 
 };
 
 UbloxController::UbloxController(const std::string portName) : fd(-1), port(portName)

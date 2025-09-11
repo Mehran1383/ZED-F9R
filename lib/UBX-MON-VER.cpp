@@ -43,7 +43,7 @@ int main()
         hwVer << response[i + HEADER_SIZE + SW_BYTE_OFFSET];
     cout << "hwVersion: " << hwVer.str() << endl;
 
-    int extCount = (response.size() - HEADER_SIZE - SW_BYTE_OFFSET - HW_BYTE_OFFSET - CHECKSUM_SIZE) \ EXT_BYTE_OFFSET;
+    int extCount = (response.size() - HEADER_SIZE - SW_BYTE_OFFSET - HW_BYTE_OFFSET - CHECKSUM_SIZE) / EXT_BYTE_OFFSET;
     for (int i = 0 ; i < extCount; i++) {
         stringstream ext;
         for (int j = 0; j < EXT_BYTE_OFFSET; j++)        
