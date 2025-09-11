@@ -36,19 +36,20 @@ int main()
     stringstream swVer;
     for (int i = 0; i < SW_BYTE_OFFSET; i++)        
         swVer << response[i + HEADER_SIZE];
-    cout << "swVersion: " << swVer.str() << endl;
+    cout << "Software Version: " << swVer.str() << endl;
 
     stringstream hwVer;
     for (int i = 0; i < HW_BYTE_OFFSET; i++)        
         hwVer << response[i + HEADER_SIZE + SW_BYTE_OFFSET];
-    cout << "hwVersion: " << hwVer.str() << endl;
+    cout << "Hardvare Version: " << hwVer.str() << endl;
 
     int extCount = (response.size() - HEADER_SIZE - SW_BYTE_OFFSET - HW_BYTE_OFFSET - CHECKSUM_SIZE) / EXT_BYTE_OFFSET;
+    cout << "Extention(s): " << endl;
     for (int i = 0 ; i < extCount; i++) {
         stringstream ext;
         for (int j = 0; j < EXT_BYTE_OFFSET; j++)        
-            swVer << response[j + HEADER_SIZE + SW_BYTE_OFFSET + HW_BYTE_OFFSET + i * 30];
-        cout << "extention: " << ext.str() << endl;
+            ext << response[j + HEADER_SIZE + SW_BYTE_OFFSET + HW_BYTE_OFFSET + i * 30];
+        cout << ext.str() << endl;
     }
 
     controller.closeSerialPort();
