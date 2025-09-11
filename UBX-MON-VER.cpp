@@ -1,7 +1,7 @@
 #include <iostream>
 #include <sstream>
 
-#include "ublox_controller.h"
+#include "lib/ublox_controller.h"
 
 #define UBX_CLS_MON_VER 0x0A
 #define UBX_ID_MON_VER 0x04
