@@ -156,7 +156,7 @@ The library provides several error codes:
 ## Serial Configuration
 
 The library configures the serial port with these settings:
-- Baud rate: 38400(default for ZED-F9 modules)
+- Baud rate: 38400 (default for ZED-F9 modules)
 - 8 data bits, no parity, 1 stop bit
 - No flow control
 - Raw mode (non-canonical)
@@ -164,7 +164,6 @@ The library configures the serial port with these settings:
 ## Resources
 
 - [u-blox ZED-F9P Protocol Specification](https://www.u-blox.com/en/product/zed-f9r-module)
-- [u-blox M8 Protocol Specification](https://www.u-blox.com/en/product/m8-module) (compatible with many messages)
 - [u-center Software](https://www.u-blox.com/en/product/u-center) (for testing and validation)
 
 
