@@ -48,7 +48,7 @@ public:
     bool sendUBXMessage(const uint8_t cls, const uint8_t id, const std::vector<uint8_t>& payload);
     bool readUBXMessage(const uint8_t cls, const uint8_t id, std::vector<uint8_t>& response);
     int waitForAck(const uint8_t expectedCls, const uint8_t expectedId);
-    string getPort() { retunr port; } 
+    std::string getPort() { retunr port; } 
 };
 
 UbloxController::UbloxController(const std::string portName) : fd(-1), port(portName)
@@ -157,7 +157,7 @@ bool UbloxController::readUBXMessage(const uint8_t cls, const uint8_t id, std::v
 
                 uint16_t len = buffer[4] | (buffer[5] << 8);
                 uint16_t totalLen = HEADER_SIZE + len + CHECKSUM_SIZE;
-                buffer->resize(totalLen);
+                buffer.resize(totalLen);
 
                 while (totalRead < totalLen) {
                     r = read(fd, buffer.data() + totalRead, 1);
@@ -210,7 +210,7 @@ int UbloxController::waitForAck(const uint8_t expectedCls, const uint8_t expecte
             if (totalRead >= ACK_MAX_LEN &&
                 buffer[0] == UBX_SYNC_CHAR1 &&
                 buffer[1] == UBX_SYNC_CHAR2 &&
-                buffer[2] == UBX_CLASS_ACK &&
+                buffer[2] == UBX_CLS_ACK &&
                 buffer[6] == expectedCls &&
                 buffer[7] == expectedId) {
 

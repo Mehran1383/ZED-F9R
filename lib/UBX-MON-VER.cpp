@@ -21,14 +21,14 @@ int main()
     }
         
     cout << "Sending UBX-MON-VER poll..." << endl;
-    if (!dev.sendUBXMessage(UBX_CLS_MON_VER, UBX_ID_MON_VER, {})) {
+    if (!controller.sendUBXMessage(UBX_CLS_MON_VER, UBX_ID_MON_VER, {})) {
         cerr << "Failed to send UBX-MON-VER." << endl;
         return 1;
     }
 
     vector<uint8_t> response;
     cout << "Waiting for UBX-MON-VER response..." << endl;
-    if (!dev.readUBXMessage(UBX_CLS_MON_VER, UBX_ID_MON_VER, response)) {
+    if (!controller.readUBXMessage(UBX_CLS_MON_VER, UBX_ID_MON_VER, response)) {
         cerr << "Failed to receive UBX-MON-VER." << endl;
         return 1;
     }
@@ -51,7 +51,7 @@ int main()
         cout << "extention: " << ext.str() << endl;
     }
 
-    dev.closeSerialPort();
+    controller.closeSerialPort();
     return 0; 
 }
 
