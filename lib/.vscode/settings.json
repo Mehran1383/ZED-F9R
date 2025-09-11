@@ -3,6 +3,8 @@
         "format": "cpp",
         "xstring": "cpp",
         "xlocmes": "cpp",
-        "vector": "cpp"
+        "vector": "cpp",
+        "iostream": "cpp",
+        "sstream": "cpp"
     }
 }
