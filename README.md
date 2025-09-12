@@ -33,7 +33,7 @@ cd ublox-controller
 
 2. Include the header in your project:
 ```cpp
-#include "ublox_controller.h"
+#include "lib/ublox_controller.h"
 ```
 
 3. Compile your application with the necessary flags:
@@ -44,7 +44,7 @@ g++ your_application.cpp -o your_application
 ## Basic Usage
 
 ```cpp
-#include "ublox_controller.h"
+#include "lib/ublox_controller.h"
 
 int main() {
     UbloxController controller("/dev/ttyACM0");
@@ -78,8 +78,8 @@ Use the format: `UBX-{CLASS}-{ID}.cpp` (e.g., `UBX-CFG-PRT.cpp`)
 
 ```cpp
 #include <iostream>
-#include <sstream>
-#include "ublox_controller.h"
+
+#include "lib/ublox_controller.h"
 
 // UBX message definitions
 #define UBX_CLS_EXAMPLE 0xXX  // Replace with actual class
@@ -163,7 +163,7 @@ The library configures the serial port with these settings:
 
 ## Resources
 
-- [u-blox ZED-F9P Protocol Specification](https://www.u-blox.com/en/product/zed-f9r-module)
+- [u-blox ZED-F9R Protocol Specification](https://www.u-blox.com/en/product/zed-f9r-module)
 - [u-center Software](https://www.u-blox.com/en/product/u-center) (for testing and validation)
 
 
